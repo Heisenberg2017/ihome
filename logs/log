@@ -1,0 +1,7 @@
+[D 171121 13:59:45 Passport:8] debug msg
+[I 171121 13:59:45 Passport:9] info msg
+[W 171121 13:59:45 Passport:10] warning msg
+[E 171121 13:59:45 Passport:11] error msg
+[I 171121 13:59:45 web:2063] 304 GET / (127.0.0.1) 1.88ms
+[W 171121 13:59:45 web:2063] 404 GET /favicon.ico (127.0.0.1) 1.82ms
+[I 171121 14:16:16 autoreload:198] server.py modified; restarting server
