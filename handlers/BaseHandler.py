@@ -1,5 +1,5 @@
 # coding:utf-8
-
+import json
 from tornado.web import RequestHandler, StaticFileHandler
 
 
@@ -10,8 +10,15 @@ class BaseHandler(RequestHandler):
     def db(self):
         return self.application.db
 
+    @property
+    def redis(self):
+        return self.application.redis
+
     def prepare(self):
-        pass
+        if self.request.headers.get("Content-Type","").startswith("application/json"):
+            self.json_dict = json.loads(self.request.body)
+        else:
+            self.json_dict = {}
 
     def write_error(self, status_code, **kwargs):
         pass
