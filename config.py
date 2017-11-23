@@ -23,3 +23,4 @@ redis_options = dict(
 
 # log_file = os.path.join(os.path.dirname(__file__),"logs/log")
 log_lever = "debug"
+session_expires = 68400 # session_id的有效期，单位秒

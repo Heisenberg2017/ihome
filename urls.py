@@ -5,6 +5,7 @@ from handlers import Passport,VerifyCode
 from handlers.BaseHandler import StaticFileBaseHandler as StaticFileHandler
 
 handler = [
+    (r"/api/login",Passport.LoginHandler),
     (r"/api/register",Passport.RegisterHandler),
     (r"/api/piccode",VerifyCode.ImageCodeHandler),
     (r"/api/smscode",VerifyCode.PhoneCodeHandler),

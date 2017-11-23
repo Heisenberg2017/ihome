@@ -1,6 +1,7 @@
 # coding:utf-8
 import json
 from tornado.web import RequestHandler, StaticFileHandler
+from utils.session import Session
 
 
 class BaseHandler(RequestHandler):
@@ -24,7 +25,8 @@ class BaseHandler(RequestHandler):
         pass
 
     def set_default_handlers(self):
-        pass
+        # 默认传输数据为json格式
+        self.set_header("Content-Type", "application/json; charset=UTF-8")
 
     def initialize(self):
         pass
@@ -32,6 +34,9 @@ class BaseHandler(RequestHandler):
     def on_finish(self):
         pass
 
+    def get_current_user(self):
+        self.session = Session(self)
+        return self.session.data
 
 class StaticFileBaseHandler(StaticFileHandler):
     """自定义静态文件处理类, 在用户获取html页面的时候设置_xsrf的cookie"""

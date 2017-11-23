@@ -94,7 +94,7 @@ function sendSMSCode() {
                 $("#image-code-err span").html(data.errmsg);
                 $("#image-code-err").show();
                 $(".phonecode-a").attr("onclick", "sendSMSCode();")
-                if (data.errcode == "4002" || data.errcode == "4004") {
+                if (data.errcode == "4001" ||data.errcode == "4002" || data.errcode == "4004") {
                     generateImageCode();
                 }
             }
@@ -172,7 +172,7 @@ $(document).ready(function() {
             success: function (data) {
                 if ("0" == data.errcode) {
                     location.href = "/";
-                } else if ("验证码过期" == data.errmsg || "验证码错误" == data.errmsg) {
+                } else  {
                     $("#phone-code-err>span").html(data.errmsg);
                     $("#phone-code-err").show();
                 }
