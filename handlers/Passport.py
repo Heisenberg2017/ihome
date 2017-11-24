@@ -4,8 +4,19 @@ import logging
 from utils.response_code import RET
 from .BaseHandler import BaseHandler
 from utils.session import Session
-from hashlib import sha1
+from hashlib import sha256
+import config
 
+"""
+改进:
+保存的session信息如果包括除用户名外数据,必然要再查询数据库,
+存储登陆和注册都涉及到session信息的存储,代码冗余，
+考虑精简代码或者在session信息中值存储用户名看是否可行
+BUG:
+1.浏览器第一次打开_xsrf信息未发送，表单提交受阻，再次刷新正常提交
+2.发送手机验证码后应删除redis中的验证码信息,避免无用数据占用内存
+3.注册成功应删除删除redis中的手机验证码缓存,避免无用数据占用内存
+"""
 
 class RegisterHandler(BaseHandler):
     def post(self):
@@ -37,8 +48,8 @@ class RegisterHandler(BaseHandler):
             return self.write(dict(errcode=RET.PARAMERR, errmsg="验证码错误"))
 
         # 密码sha加密
-        s1 = sha1()
-        s1.update(password)
+        s1 = sha256()
+        s1.update(password+config.password_key)
         password = s1.hexdigest()
 
         # 验证成功存入数据库
@@ -49,11 +60,19 @@ class RegisterHandler(BaseHandler):
         except Exception as e:
             logging.error(e)
             return self.write(dict(errcode=RET.DATAERR, errmsg="数据库错误"))
+        
+        # 查询用户名对应用户数据
+        try:
+            use_data = self.db.get("select up_user_id,up_name,up_mobile from ih_user_profile where up_mobile = %(mobile)s",
+                                       mobile=mobile)
+        except Exception as e:
+            logging.error(e)
+            return self.write(dict(errcode=RET.DATAERR, errmsg="数据库出错"))
 
-        # 存入数据库成功，保存session
+        # 登陆成功,保存session,
         self.session = Session(self)
         # 在session中加入up_user_id方便查找-
-        self.session.data = dict(user_name = mobile)
+        self.session.data = dict(up_user_id=use_data['up_user_id'],up_name=use_data['up_name'],up_mobile=use_data['up_mobile'])
         self.session.save()
 
         # session保存成功返回数据
@@ -69,34 +88,39 @@ class LoginHandler(BaseHandler):
         if not all((mobile,use_pwd)):
             return self.write(dict(errcode=RET.PARAMERR, errmsg="账号/密码错误"))
 
-        # 查询用户名对应密码
+        # 查询用户名对应用户数据
         try:
-            pwd_exist = self.db.get("select up_passwd from ih_user_profile where up_mobile = %(mobile)s",
+            use_data = self.db.get("select up_user_id,up_name,up_mobile,up_passwd from ih_user_profile where up_mobile = %(mobile)s",
                                        mobile=mobile)
         except Exception as e:
             logging.error(e)
             return self.write(dict(errcode=RET.DATAERR, errmsg="数据库出错"))
 
-        # 密码不存在
-        if not pwd_exist:
+        # use_data为空
+        if not use_data:
             return self.write(dict(errcode=RET.USERERR, errmsg="用户不存在"))
 
+        print use_pwd
+
         # 用户传入密码加密
-        s1 = sha1()
-        s1.update(use_pwd)
+        s1 = sha256()
+        s1.update(use_pwd+config.password_key)
         use_pwd = s1.hexdigest()
+        print use_data
+
 
         # 密码不等
-        print use_pwd
-        print pwd_exist
-        if use_pwd != pwd_exist['up_passwd']:
+        if use_pwd != use_data['up_passwd']:
             return self.write(dict(errcode=RET.PWDERR, errmsg="密码错误"))
 
-        data_type = self.db.get("select * from ih_user_profile where up_mobile = %(mobile)s",
-                                       mobile=mobile)
-        print data_type
-        # 登陆成功session-
-        # 登陆成功
+
+        # 登陆成功,保存session
+        self.session = Session(self)
+        # 在session中加入up_user_id方便查找-
+        self.session.data = dict(up_user_id=use_data['up_user_id'],up_name=use_data['up_name'],up_mobile=use_data['up_mobile'])
+        self.session.save()
+
+        # 告知前端登陆成功
         self.write(dict(errcode=RET.OK))
 
 
