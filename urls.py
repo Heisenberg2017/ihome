@@ -14,5 +14,6 @@ handler = [
     (r"/api/profile", Profile.ProfileHandler),
     (r"/api/profile/avatar", Profile.AvatarHandler),
     (r"/api/profile/name", Profile.RenameHandler),
+    (r"/api/profile/auth", Profile.AuthHandler),
     (r"/(.*)", StaticFileHandler,dict(path=os.path.join(os.path.dirname(__file__), "html"), default_filename="index.html"))
 ]
