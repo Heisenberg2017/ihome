@@ -25,3 +25,4 @@ redis_options = dict(
 log_lever = "debug"
 session_expires = 68400 # session_id的有效期，单位秒
 password_key = "laowangdemo" # 混淆秘钥
+image_domain = 'http://ozyfrfdcg.bkt.clouddn.com/'

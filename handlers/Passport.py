@@ -6,6 +6,7 @@ from .BaseHandler import BaseHandler
 from utils.session import Session
 from hashlib import sha256
 import config
+import json
 
 """
 改进:
@@ -63,7 +64,7 @@ class RegisterHandler(BaseHandler):
         
         # 查询用户名对应用户数据
         try:
-            use_data = self.db.get("select up_user_id,up_name,up_mobile from ih_user_profile where up_mobile = %(mobile)s",
+            use_data = self.db.get("select up_user_id,up_name,up_mobile,up_avatar from ih_user_profile where up_mobile = %(mobile)s",
                                        mobile=mobile)
         except Exception as e:
             logging.error(e)
@@ -72,7 +73,7 @@ class RegisterHandler(BaseHandler):
         # 登陆成功,保存session,
         self.session = Session(self)
         # 在session中加入up_user_id方便查找-
-        self.session.data = dict(up_user_id=use_data['up_user_id'],up_name=use_data['up_name'],up_mobile=use_data['up_mobile'])
+        self.session.data = dict(up_user_id=use_data['up_user_id'],up_name=use_data['up_name'],up_mobile=use_data['up_mobile'],up_avatar=use_data['up_avatar'])
         self.session.save()
 
         # session保存成功返回数据
@@ -90,7 +91,7 @@ class LoginHandler(BaseHandler):
 
         # 查询用户名对应用户数据
         try:
-            use_data = self.db.get("select up_user_id,up_name,up_mobile,up_passwd from ih_user_profile where up_mobile = %(mobile)s",
+            use_data = self.db.get("select up_user_id,up_name,up_mobile,up_passwd,up_avatar from ih_user_profile where up_mobile = %(mobile)s",
                                        mobile=mobile)
         except Exception as e:
             logging.error(e)
@@ -117,11 +118,29 @@ class LoginHandler(BaseHandler):
         # 登陆成功,保存session
         self.session = Session(self)
         # 在session中加入up_user_id方便查找-
-        self.session.data = dict(up_user_id=use_data['up_user_id'],up_name=use_data['up_name'],up_mobile=use_data['up_mobile'])
+        self.session.data = dict(up_user_id=use_data['up_user_id'],up_name=use_data['up_name'],up_mobile=use_data['up_mobile'],up_avatar=use_data['up_avatar'])
         self.session.save()
 
         # 告知前端登陆成功
         self.write(dict(errcode=RET.OK))
 
+
+class LogoutHandler(BaseHandler):
+
+    def get(self):
+        # 清除sessionx信息
+        self.session = Session(self)
+        self.session.clear()
+        # 处理完成
+        self.write({'errcode':RET.OK})
+
+
+class CheckLoginHandler(BaseHandler):
+    """检查登陆状态"""
+    def get(self):
+        if self.get_current_user():
+            self.write({'errcode':RET.OK,'data':{'name':self.session.data.get('up_name')}})
+        else:
+            self.write({'errcode':RET.SESSIONERR})
 
 

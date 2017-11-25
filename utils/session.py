@@ -25,7 +25,7 @@ class Session(object):
             if not data:
                 self.data = {}
             else:
-                self.data = data
+                self.data = json.loads(data)
 
     def save(self):
         json_data = json.dumps(self.data)
