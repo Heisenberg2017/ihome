@@ -9,8 +9,8 @@ $(document).ready(function(){
             // html = template("area-tmpl", {areas: data.data});
             // $("#area-id").html(html);
             // console.log(html);
-            for (var i=0; i<data.data.length; i++) {
-                $("#area-id").append('<option value="'+data.data[i].area_id+'">'+data.data[i].name+'</option>');
+            for (var i=0; i<data.areas.length; i++) {
+                $("#area-id").append('<option value="'+data.areas[i].area_id+'">'+data.areas[i].name+'</option>');
             }
         }
     }, "json")
