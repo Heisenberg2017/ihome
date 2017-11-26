@@ -4,15 +4,12 @@ import logging
 from utils.response_code import RET
 from .BaseHandler import BaseHandler
 from utils.session import Session
+from utils.commons import required_login
 from hashlib import sha256
 import config
 import json
 
 """
-改进:
-保存的session信息如果包括除用户名外数据,必然要再查询数据库,
-存储登陆和注册都涉及到session信息的存储,代码冗余，
-考虑精简代码或者在session信息中值存储用户名看是否可行
 BUG:
 1.浏览器第一次打开_xsrf信息未发送，表单提交受阻，再次刷新正常提交
 2.发送手机验证码后应删除redis中的验证码信息,避免无用数据占用内存
@@ -108,8 +105,6 @@ class LoginHandler(BaseHandler):
         s1.update(use_pwd+config.password_key)
         use_pwd = s1.hexdigest()
         print use_data
-
-
         # 密码不等
         if use_pwd != use_data['up_passwd']:
             return self.write(dict(errcode=RET.PWDERR, errmsg="密码错误"))
@@ -126,7 +121,7 @@ class LoginHandler(BaseHandler):
 
 
 class LogoutHandler(BaseHandler):
-
+    @required_login
     def get(self):
         # 清除sessionx信息
         self.session = Session(self)
