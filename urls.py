@@ -19,5 +19,7 @@ handler = [
     (r"/api/house/my", House.MyHousesHandler),
     (r"/api/house/area", House.AreaInfoHandler),
     (r"/api/house/info", House.HouseInfoHandler),
+    (r"/api/house/image", House.HouseImageHandler),
+
     (r"/(.*)", StaticFileHandler,dict(path=os.path.join(os.path.dirname(__file__), "html"), default_filename="index.html"))
 ]

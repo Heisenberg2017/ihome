@@ -63,7 +63,7 @@ class RegisterHandler(BaseHandler):
             return self.write(dict(errcode=RET.DATAERR, errmsg="数据库错误"))
 
         # 登陆成功,构造符合格式session信息
-        use_data = {"user_id":user_id,"up_name":mobile,"up_mobile":mobile}
+        use_data = {"up_user_id":user_id,"up_name":mobile,"up_mobile":mobile}
         self.session = Session(self)
         # 保存session
         self.session.data = dict(use_Data=use_data)

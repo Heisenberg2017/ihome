@@ -48,7 +48,7 @@ class AvatarHandler(BaseHandler):
         self.session.data['up_avatar'] = key
         self.session.save()
 
-        data = config.image_domain+self.session.data.get('up_avatar')
+        data = config.image_domain+key
         self.write(dict(errcode=RET.OK, data=data))
 
 
