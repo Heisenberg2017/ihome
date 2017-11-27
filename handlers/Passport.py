@@ -10,6 +10,9 @@ import config
 import json
 
 """
+改进：
+注册时不需要再查询数据库获得session信息
+user_id在execute语句执行时就会返回
 BUG:
 1.浏览器第一次打开_xsrf信息未发送，表单提交受阻，再次刷新正常提交
 2.发送手机验证码后应删除redis中的验证码信息,避免无用数据占用内存
@@ -52,25 +55,18 @@ class RegisterHandler(BaseHandler):
 
         # 验证成功存入数据库
         try :
-            self.db.execute("insert into ih_user_profile(up_name,up_mobile,up_passwd) "
+            user_id = self.db.execute("insert into ih_user_profile(up_name,up_mobile,up_passwd) "
                             "values(%(up_name)s, %(up_mobile)s, %(up_passwd)s)",
                             up_name= str(mobile),up_mobile= mobile,up_passwd= password)
         except Exception as e:
             logging.error(e)
             return self.write(dict(errcode=RET.DATAERR, errmsg="数据库错误"))
-        
-        # 查询用户名对应用户数据
-        try:
-            use_data = self.db.get("select up_user_id,up_name,up_mobile,up_avatar from ih_user_profile where up_mobile = %(mobile)s",
-                                       mobile=mobile)
-        except Exception as e:
-            logging.error(e)
-            return self.write(dict(errcode=RET.DATAERR, errmsg="数据库出错"))
 
-        # 登陆成功,保存session,
+        # 登陆成功,构造符合格式session信息
+        use_data = {"user_id":user_id,"up_name":mobile,"up_mobile":mobile}
         self.session = Session(self)
-        # 在session中加入up_user_id方便查找-
-        self.session.data = dict(up_user_id=use_data['up_user_id'],up_name=use_data['up_name'],up_mobile=use_data['up_mobile'],up_avatar=use_data['up_avatar'])
+        # 保存session
+        self.session.data = dict(use_Data=use_data)
         self.session.save()
 
         # session保存成功返回数据

@@ -15,7 +15,8 @@ class ProfileHandler(BaseHandler):
     def get(self):
         # data数据应由数据库查询得到
         user_data = self.session.data
-        data = {'name':user_data.get('up_name'),'mobile':user_data.get('up_mobile'),'avatar':config.image_domain+user_data.get('up_avatar')}
+        data = {'name':user_data.get('up_name'),'mobile':user_data.get('up_mobile'),'avatar':config.image_domain+user_data.get('up_avatar')
+        if user_data.get('up_avatar') else ""}
         self.write({'errcode': RET.OK, 'data':data})
 
 
