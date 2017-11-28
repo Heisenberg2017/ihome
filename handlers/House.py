@@ -11,46 +11,84 @@ from utils.qiniu_storage import storage
 from utils.session import Session
 
 class IndexHandler(BaseHandler):
+
     """首页信息"""
     def get(self):
+
         # 从reids中取出地区信息
         try:
             areas_data = self.redis.get("area_info")
         except Exception as e:
             logging.error(e)
             areas_data = None
-        # redis中地区信息不为空
-        if areas_data:
+        # redis没有地区信息,查询数据库
+        if not areas_data:
+            try:
+                areas_data = self.db.query("select ai_area_id,ai_name from ih_area_info")
+            except Exception as e:
+                logging.error(e)
+                return self.write(dict(errcode=RET.DBERR, errmsg="get data error"))
+            # 数据库中地区信息为空
+            if not areas_data:
+                return self.write(dict(errcode=RET.NODATA, errmsg="no area data"))
+            # 取出数据库中地区信息
+            areas = []
+            for l in areas_data:
+                area = {
+                    "area_id": l["ai_area_id"],
+                    "name": l["ai_name"]
+                }
+                areas.append(area)
+            # 往redis保存一份地区信息
+            areas_data = json.dumps(areas)
+            print("areas_data:%s"%areas_data)
+            try:
+                self.redis.setex("area_info", constants.REDIS_AREA_INFO_EXPIRES_SECONDS, areas_data)
+            except Exception as e:
+                logging.error(e)
+        else:
             logging.info("hit redis: area_info")
-            resp = '{"errcode":"0","errmsg":"OK","areas":%s}'% areas_data
+            print("areas_data:%s" % areas_data)
+        # 此处需保证无论从mysql或者redis获得的areas_data必须完全相同(json字符串)
+        # redis查询是否有房屋信息
+        try:
+            houses_data = self.redis.get("index_houses_info")
+        except Exception as e:
+            logging.error(e)
+            houses_data = None
+        # redis中有房屋信息，返回数据
+        if houses_data:
+            logging.info("hit redis: index_houses_info")
+            resp = '{"errcode":"0","errmsg":"OK","areas":%s,"houses":%s}'% (areas_data,houses_data)
             print resp
             return self.write(resp)
-        # redis中无区域信息，查询数据库
+
+        # redis中无房屋信息,数据库查询
         try:
-            areas_data = self.db.query("select ai_area_id,ai_name from ih_area_info")
+            houses_data = self.db.query("select hi_house_id,hi_title,hi_index_image_url from ih_house_info order by"\
+                                        " hi_order_count desc limit %s;"% constants.INDEX_PAGE_MAX_HOUSES_NUMBER)
         except Exception as e:
             logging.error(e)
             return self.write(dict(errcode=RET.DBERR, errmsg="get data error"))
-        # 数据库中地区信息为空
-        if not areas_data:
-            return self.write(dict(errcode=RET.NODATA, errmsg="no area data"))
-        # 取出数据库中地区信息
-        areas = []
-        for l in areas_data:
-            area = {
-                "area_id":l["ai_area_id"],
-                "name":l["ai_name"]
-            }
-            areas.append(area)
 
-        # 返回给用户数据前，往redis保存一份
-        json_data = json.dumps(areas)
+        houses = []
+        for l in houses_data:
+            house = {
+                "house_id":l["hi_house_id"],
+                "title":l["hi_title"],
+                "img_url": config.image_domain+l["hi_index_image_url"]
+            }
+            houses.append(house)
+        # 放入缓存中
+        houses_data = json.dumps(houses)
         try:
-            self.redis.setex("area_info", constants.REDIS_AREA_INFO_EXPIRES_SECONDS,json_data)
+            self.redis.setex("index_houses_info", constants.REDIS_INDEX_HOUSES_INFO_SECONDS,houses_data)
         except Exception as e:
             logging.error(e)
-
-        self.write(dict(errcode=RET.OK, errmsg="OK", areas=areas))
+        # 返回数据
+        resp = '{"errcode":"0","errmsg":"OK","areas":%s,"houses":%s}' % (areas_data, houses_data)
+        print resp
+        return self.write(resp)
 
 class AreaInfoHandler(BaseHandler):
     """提供城区信息"""
