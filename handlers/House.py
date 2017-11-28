@@ -8,7 +8,49 @@ import constants
 from utils.commons import required_login
 import config
 from utils.qiniu_storage import storage
+from utils.session import Session
 
+class IndexHandler(BaseHandler):
+    """首页信息"""
+    def get(self):
+        # 从reids中取出地区信息
+        try:
+            areas_data = self.redis.get("area_info")
+        except Exception as e:
+            logging.error(e)
+            areas_data = None
+        # redis中地区信息不为空
+        if areas_data:
+            logging.info("hit redis: area_info")
+            resp = '{"errcode":"0","errmsg":"OK","areas":%s}'% areas_data
+            print resp
+            return self.write(resp)
+        # redis中无区域信息，查询数据库
+        try:
+            areas_data = self.db.query("select ai_area_id,ai_name from ih_area_info")
+        except Exception as e:
+            logging.error(e)
+            return self.write(dict(errcode=RET.DBERR, errmsg="get data error"))
+        # 数据库中地区信息为空
+        if not areas_data:
+            return self.write(dict(errcode=RET.NODATA, errmsg="no area data"))
+        # 取出数据库中地区信息
+        areas = []
+        for l in areas_data:
+            area = {
+                "area_id":l["ai_area_id"],
+                "name":l["ai_name"]
+            }
+            areas.append(area)
+
+        # 返回给用户数据前，往redis保存一份
+        json_data = json.dumps(areas)
+        try:
+            self.redis.setex("area_info", constants.REDIS_AREA_INFO_EXPIRES_SECONDS,json_data)
+        except Exception as e:
+            logging.error(e)
+
+        self.write(dict(errcode=RET.OK, errmsg="OK", areas=areas))
 
 class AreaInfoHandler(BaseHandler):
     """提供城区信息"""
@@ -84,7 +126,146 @@ class MyHousesHandler(BaseHandler):
 
 
 class HouseInfoHandler(BaseHandler):
+    # 需要获得的数据
+    # data = {"images": ["http://ozyfrfdcg.bkt.clouddn.com/FoZg1QLpRi4vckq_W3tBBQe1wJxn",
+    #                    "http://ozyfrfdcg.bkt.clouddn.com/FoZg1QLpRi4vckq_W3tBBQe1wJxn",
+    #                   "http://ozyfrfdcg.bkt.clouddn.com/FoZg1QLpRi4vckq_W3tBBQe1wJxn"],
+    #         "price": "100",
+    #         "title": "测试专用",
+    #         "user_name": "老王测试",
+    #         "address": "厦门湖里区鼓浪屿",
+    #         "room_count": "3",
+    #         "acreage": "100",
+    #         "unit": "5",
+    #         "capacity": "10",
+    #         "beds": "3",
+    #         "deposit": "1000",
+    #         "min_days": "1",
+    #         "max_days": "0",
+    #         "facilities": [1, 3, 5, 7],
+    #         "user_avatar": "http://ozyfrfdcg.bkt.clouddn.com/FuXUPWubefYhFsyPOBeALH3F3Fts",
+    #         "comments": [
+    #             {"user_name": "测试号",
+    #             "ctime": "2017-10-3",
+    #             "content": "房子很棒我很喜欢",},
+    #           ]
+    #         }
+    def get(self):
+        house_id = self.get_argument('house_id')
+        self.session = Session(self)
+        user_id = self.session.data.get("up_user_id", "-1")
+        print house_id
 
+        if not house_id:
+            return self.write(dict(errcode=RET.PARAMERR, errmsg="缺少参数"))
+
+            # 先从redis缓存中获取信息
+        try:
+            result = self.redis.get("house_info_%s" % house_id)
+        except Exception as e:
+            logging.error(e)
+            result = None
+        if result:
+            # 此时从redis中获取到的是缓存的json格式数据
+            resp = '{"errcode":"0", "errmsg":"OK", "data":%s, "user_id":%s}' % (result, user_id)
+            return self.write(resp)
+
+            # 查询数据库
+
+            # 查询房屋基本信息
+        sql = "select hi_title,hi_price,hi_address,hi_room_count,hi_acreage,hi_house_unit,hi_capacity,hi_beds," \
+              "hi_deposit,hi_min_days,hi_max_days,up_name,up_avatar,hi_user_id " \
+              "from ih_house_info left join ih_user_profile on hi_user_id=up_user_id where hi_house_id=%s"
+
+        try:
+            result = self.db.get(sql, house_id)
+        except Exception as e:
+            logging.error(e)
+            return self.write(dict(errcode=RET.DBERR, errmsg="查询错误"))
+
+        # 用户查询的房屋id不存在
+        if not result:
+            return self.write(dict(errcode=RET.NODATA, errmsg="查无此房"))
+
+        data = {
+            "hid": house_id,
+            "user_id": result["hi_user_id"],
+            "title": result["hi_title"],
+            "price": result["hi_price"],
+            "address": result["hi_address"],
+            "room_count": result["hi_room_count"],
+            "acreage": result["hi_acreage"],
+            "unit": result["hi_house_unit"],
+            "capacity": result["hi_capacity"],
+            "beds": result["hi_beds"],
+            "deposit": result["hi_deposit"],
+            "min_days": result["hi_min_days"],
+            "max_days": result["hi_max_days"],
+            "user_name": result["up_name"],
+            "user_avatar": config.image_domain + result["up_avatar"] if result.get("up_avatar") else ""
+        }
+
+        # 查询房屋的图片信息
+        sql = "select hi_url from ih_house_image where hi_house_id=%s"
+        try:
+            result = self.db.query(sql, house_id)
+        except Exception as e:
+            logging.error(e)
+            result = None
+
+        # 如果查询到的图片
+        images = []
+        if result:
+            for image in result:
+                images.append(config.image_domain + image["hi_url"])
+        data["images"] = images
+
+        # 查询房屋的基本设施
+        sql = "select hf_facility_id from ih_house_facility where hf_house_id=%s"
+        try:
+            result = self.db.query(sql, house_id)
+        except Exception as e:
+            logging.error(e)
+            result = None
+
+        # 如果查询到设施
+        facilities = []
+        if result:
+            for facility in result:
+                facilities.append(facility["hf_facility_id"])
+        data["facilities"] = facilities
+
+        # 查询评论信息
+        sql = "select oi_comment,up_name,oi_utime,up_mobile from ih_order_info left join ih_user_profile " \
+              "on oi_user_id=up_user_id where oi_house_id=%s and oi_status=4 and oi_comment is not null"
+
+        try:
+            result = self.db.query(sql, house_id)
+        except Exception as e:
+            logging.error(e)
+            result = None
+        comments = []
+        if result:
+            for comment in result:
+                comments.append(dict(
+                    user_name=comment["up_name"] if comment["up_name"] != comment["up_mobile"] else "匿名用户",
+                    content=comment["oi_comment"],
+                    ctime=comment["oi_utime"].strftime("%Y-%m-%d %H:%M:%S")
+                ))
+        data["comments"] = comments
+
+        # 存入到redis中
+        json_data = json.dumps(data)
+        try:
+            self.redis.setex("house_info_%s" % house_id, constants.REDIS_HOUSE_INFO_EXPIRES_SECONDES,
+                             json_data)
+        except Exception as e:
+            logging.error(e)
+        # json格式的数据直接进行拼接字符串发送给前端
+        resp = '{"errcode":"0", "errmsg":"OK", "data":%s, "user_id":%s}' % (json_data, user_id)
+        # self.write(dict(errcode=RET.OK, errmsg="OK", data=data))
+        self.write(resp)
+        # self.write({"errcode":RET.OK,"data":data})
     @required_login
     def post(self):
         print self.json_dict
@@ -176,8 +357,12 @@ class HouseImageHandler(BaseHandler):
 
         print key
         # 更新房屋图片url到数据库内
+        sql = "insert into ih_house_image(hi_house_id,hi_url) values(%s,%s);" \
+                  "update ih_house_info set hi_index_image_url=%s " \
+                  "where hi_house_id=%s and hi_index_image_url is null;"
+
         try:
-            self.db.execute("update ih_house_info set hi_index_image_url = %(index_image_url)s where hi_house_id  = %(house_id)s", index_image_url=key, house_id=house_id)
+            self.db.execute(sql,house_id,key,key,house_id)
         except Exception as e:
             logging.error(e)
             return self.write(dict(errcode=RET.DATAERR, errmsg="数据库出错"))

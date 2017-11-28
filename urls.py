@@ -15,7 +15,7 @@ handler = [
     (r"/api/profile/avatar", Profile.AvatarHandler),
     (r"/api/profile/name", Profile.RenameHandler),
     (r"/api/profile/auth", Profile.AuthHandler),
-    (r"/api/house/index", House.AreaInfoHandler),
+    (r"/api/house/index", House.IndexHandler),
     (r"/api/house/my", House.MyHousesHandler),
     (r"/api/house/area", House.AreaInfoHandler),
     (r"/api/house/info", House.HouseInfoHandler),
