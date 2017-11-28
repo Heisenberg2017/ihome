@@ -9,6 +9,7 @@ from utils.commons import required_login
 import config
 from utils.qiniu_storage import storage
 from utils.session import Session
+import math
 
 class IndexHandler(BaseHandler):
 
@@ -90,10 +91,10 @@ class IndexHandler(BaseHandler):
         print resp
         return self.write(resp)
 
+
 class AreaInfoHandler(BaseHandler):
     """提供城区信息"""
     def get(self):
-
         # 从reids中取出地区信息
         try:
             areas_data = self.redis.get("area_info")
@@ -411,3 +412,151 @@ class HouseImageHandler(BaseHandler):
 
         data = config.image_domain+key
         self.write(dict(errcode=RET.OK, url=data))
+
+
+class SearchHandler(BaseHandler):
+
+    def get(self):
+        """
+        传入参数说明
+        start_date 用户查询的起始时间 sd     非必传   ""          "2017-02-28"
+        end_date    用户查询的终止时间 ed    非必传   ""
+        area_id     用户查询的区域条件   aid 非必传   ""
+        sort_key    排序的关键词     sk     非必传   "new"      "new" "booking" "price-inc"  "price-des"
+        page        返回的数据页数     p     非必传   1
+        """
+        # 获取参数
+        start_date = self.get_argument("sd", "")
+        end_date = self.get_argument("ed", "")
+        area_id = self.get_argument("aid", "")
+        sort_key = self.get_argument("sk", "new")
+        page = self.get_argument("p", "1")
+
+        # 检查参数
+        # 判断日期格式、sort_Key 字段的值、page的整数
+
+        # 先从redis中获取数据
+        try:
+            redis_key = "houses_%s_%s_%s_%s" % (start_date, end_date, area_id, sort_key)
+            ret = self.redis.hget(redis_key, page)
+        except Exception as e:
+            logging.error(e)
+            ret = None
+        if ret:
+            logging.info("hit redis")
+            print ret
+            return self.write(ret)
+
+        # 数据查询
+        # 涉及到表： ih_house_info 房屋的基本信息  ih_user_profile 房东的用户信息 ih_order_info 房屋订单数据
+
+        sql = "select distinct hi_title,hi_house_id,hi_price,hi_room_count,hi_address,hi_order_count,up_avatar,hi_index_image_url,hi_ctime" \
+              " from ih_house_info inner join ih_user_profile on hi_user_id=up_user_id left join ih_order_info" \
+              " on hi_house_id=oi_house_id"
+
+        sql_total_count = "select count(distinct hi_house_id) count from ih_house_info inner join ih_user_profile on hi_user_id=up_user_id " \
+                          "left join ih_order_info on hi_house_id=oi_house_id"
+
+        sql_where = []  # 用来保存sql语句的where条件
+        sql_params = {}  # 用来保存sql查询所需的动态数据
+
+        if start_date and end_date:
+            sql_part = "((oi_begin_date>%(end_date)s or oi_end_date<%(start_date)s) " \
+                       "or (oi_begin_date is null and oi_end_date is null))"
+            sql_where.append(sql_part)
+            sql_params["start_date"] = start_date
+            sql_params["end_date"] = end_date
+        elif start_date:
+            sql_part = "(oi_end_date<%(start_date)s or (oi_begin_date is null and oi_end_date is null))"
+            sql_where.append(sql_part)
+            sql_params["start_date"] = start_date
+        elif end_date:
+            sql_part = "(oi_begin_date>%(end_date)s or (oi_begin_date is null and oi_end_date is null))"
+            sql_where.append(sql_part)
+            sql_params["end_date"] = end_date
+
+        if area_id:
+            sql_part = "hi_area_id=%(area_id)s"
+            sql_where.append(sql_part)
+            sql_params["area_id"] = area_id
+
+        if sql_where:
+            sql += " where "
+            sql += " and ".join(sql_where)
+
+        # 有了where条件，先查询总条目数
+        try:
+            ret = self.db.get(sql_total_count, **sql_params)
+        except Exception as e:
+            logging.error(e)
+            total_page = -1
+        else:
+            total_page = int(math.ceil(ret["count"] / float(constants.HOUSE_LIST_PAGE_CAPACITY)))
+            page = int(page)
+            if page > total_page:
+                return self.write(dict(errcode=RET.OK, errmsg="OK", data=[], total_page=total_page))
+
+        # 排序
+        if "new" == sort_key:  # 按最新上传时间排序
+            sql += " order by hi_ctime desc"
+        elif "booking" == sort_key:  # 最受欢迎
+            sql += " order by hi_order_count desc"
+        elif "price-inc" == sort_key:  # 价格由低到高
+            sql += " order by hi_price asc"
+        elif "price-des" == sort_key:  # 价格由高到低
+            sql += " order by hi_price desc"
+
+        # 分页
+        # limit 10 返回前10条
+        # limit 20,3 从20条开始，返回3条数据
+        if 1 == page:
+            sql += " limit %s" % (constants.HOUSE_LIST_PAGE_CAPACITY * constants.HOUSE_LIST_PAGE_CACHE_NUM)
+        else:
+            sql += " limit %s,%s" % ((page - 1) * constants.HOUSE_LIST_PAGE_CAPACITY,
+                                     constants.HOUSE_LIST_PAGE_CAPACITY * constants.HOUSE_LIST_PAGE_CACHE_NUM)
+
+        logging.debug(sql)
+        try:
+            ret = self.db.query(sql, **sql_params)
+        except Exception as e:
+            logging.error(e)
+            return self.write(dict(errcode=RET.DBERR, errmsg="查询出错"))
+        data = []
+        if ret:
+            for l in ret:
+                house = dict(
+                    house_id=l["hi_house_id"],
+                    title=l["hi_title"],
+                    price=l["hi_price"],
+                    room_count=l["hi_room_count"],
+                    address=l["hi_address"],
+                    order_count=l["hi_order_count"],
+                    avatar=config.image_domain + l["up_avatar"] if l.get("up_avatar") else "",
+                    image_url=config.image_domain + l["hi_index_image_url"] if l.get(
+                        "hi_index_image_url") else ""
+                )
+                data.append(house)
+
+        # 对与返回的多页面数据进行分页处理
+        # 首先取出用户想要获取的page页的数据
+        current_page_data = data[:constants.HOUSE_LIST_PAGE_CAPACITY]
+        house_data = {}
+        house_data[page] = json.dumps(
+            dict(errcode=RET.OK, errmsg="OK", data=current_page_data, total_page=total_page))
+        # 将多取出来的数据分页
+        i = 1
+        while 1:
+            page_data = data[i * constants.HOUSE_LIST_PAGE_CAPACITY: (i + 1) * constants.HOUSE_LIST_PAGE_CAPACITY]
+            if not page_data:
+                break
+            house_data[page + i] = json.dumps(
+                dict(errcode=RET.OK, errmsg="OK", data=page_data, total_page=total_page))
+            i += 1
+        try:
+            redis_key = "houses_%s_%s_%s_%s" % (start_date, end_date, area_id, sort_key)
+            self.redis.hmset(redis_key, house_data)
+            self.redis.expire(redis_key, constants.REDIS_HOUSE_LIST_EXPIRES_SECONDS)
+        except Exception as e:
+            logging.error(e)
+        print house_data[page]
+        self.write(house_data[page])

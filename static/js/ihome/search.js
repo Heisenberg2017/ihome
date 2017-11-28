@@ -24,7 +24,7 @@ function updateFilterDateDisplay() {
     }
 }
 
-function updateHouseData(action="append") {
+function updateHouseData(action) {
     var areaId = $(".filter-area>li.active").attr("area-id");
     if (undefined == areaId) areaId = "";
     var startDate = $("#start-date").val();
@@ -37,23 +37,23 @@ function updateHouseData(action="append") {
         sk:sortKey,
         p:next_page
     };
-    $.get("/api/house/list2", params, function(data){
+    $.get("/api/house/list", params, function(data){
         house_data_querying = false;
         if ("0" == data.errcode) {
             if (0 == data.total_page) {
                 $(".house-list").html("暂时没有符合您查询的房屋信息。");
             } else {
                 total_page = data.total_page;
-                if ("append" == action) {
-                    cur_page = next_page;
-                    $(".house-list").append(template("house-list-tmpl", {houses:data.data}));
-                } else if ("renew" == action) {
+                if ("renew" == action) {
                     cur_page = 1;
                     $(".house-list").html(template("house-list-tmpl", {houses:data.data}));
+                } else {
+                    cur_page = next_page;
+                    $(".house-list").append(template("house-list-tmpl", {houses:data.data}));
                 }
             }
         }
-    })
+    }, "json")
 }
 
 $(document).ready(function(){
@@ -71,17 +71,17 @@ $(document).ready(function(){
         if ("0" == data.errcode) {
             var areaId = queryData["aid"];
             if (areaId) {
-                for (var i=0; i<data.data.length; i++) {
+                for (var i=0; i<data.areas.length; i++) {
                     areaId = parseInt(areaId);
-                    if (data.data[i].area_id == areaId) {
-                        $(".filter-area").append('<li area-id="'+ data.data[i].area_id+'" class="active">'+ data.data[i].name+'</li>');
+                    if (data.areas[i].area_id == areaId) {
+                        $(".filter-area").append('<li area-id="'+ data.areas[i].area_id+'" class="active">'+ data.areas[i].name+'</li>');
                     } else {
-                        $(".filter-area").append('<li area-id="'+ data.data[i].area_id+'">'+ data.data[i].name+'</li>');
+                        $(".filter-area").append('<li area-id="'+ data.areas[i].area_id+'">'+ data.areas[i].name+'</li>');
                     }
                 }
             } else {
-                for (var i=0; i<data.data.length; i++) {
-                    $(".filter-area").append('<li area-id="'+ data.data[i].area_id+'">'+ data.data[i].name+'</li>');
+                for (var i=0; i<data.areas.length; i++) {
+                    $(".filter-area").append('<li area-id="'+ data.areas[i].area_id+'">'+ data.areas[i].name+'</li>');
                 }
             }
             updateHouseData("renew");
@@ -101,7 +101,7 @@ $(document).ready(function(){
                 }
             }
         }
-    });
+    }, "json");
 
 
     $(".input-daterange").datepicker({
