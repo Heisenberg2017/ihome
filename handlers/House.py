@@ -11,6 +11,7 @@ from utils.qiniu_storage import storage
 from utils.session import Session
 import math
 
+
 class IndexHandler(BaseHandler):
 
     """首页信息"""

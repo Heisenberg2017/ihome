@@ -87,6 +87,7 @@ body {
     background-color: #ff6666;
     color: #fff;
     text-align: center;
+    cursor:pointer;
 }
 .popup_con{display:none;}
 .popup{width:300px;height:150px;position:fixed;

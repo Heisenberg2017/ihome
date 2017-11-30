@@ -38,6 +38,7 @@ class BaseHandler(RequestHandler):
         self.session = Session(self)
         return self.session.data
 
+
 class StaticFileBaseHandler(StaticFileHandler):
     """自定义静态文件处理类, 在用户获取html页面的时候设置_xsrf的cookie"""
     def __init__(self, *args, **kwargs):

@@ -60,7 +60,7 @@ $(document).ready(function(){
             $(".house-text>h3").html(data.data.title);
             $(".house-text>p>span").html((data.data.price/100.0).toFixed(0));
         }
-    });
+    },'json');
     $(".submit-btn").on("click", function(e) {
         if ($(".order-amount>span").html()) {
             $(this).prop("disabled", true);
