@@ -60,6 +60,7 @@ class OrderHandler(BaseHandler):
 
 
 class MyOrderHandler(BaseHandler):
+    """未完成订单"""
     @required_login
     def get(self):
         user_mode = self.get_argument('role','')
@@ -104,6 +105,7 @@ class MyOrderHandler(BaseHandler):
 
 
 class AcceptOrderHandler(BaseHandler):
+    """提交订单"""
     @required_login
     def post(self):
         print self.json_dict
@@ -136,6 +138,7 @@ class AcceptOrderHandler(BaseHandler):
 
 
 class CommentOrderHandler(BaseHandler):
+    """评论"""
     @required_login
     def post(self):
         print self.json_dict
@@ -165,6 +168,7 @@ class CommentOrderHandler(BaseHandler):
 
 
 class RejectOrderHandler(BaseHandler):
+    """拒单"""
     @required_login
     def post(self):
         print self.json_dict

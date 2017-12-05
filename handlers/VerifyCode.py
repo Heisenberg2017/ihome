@@ -10,7 +10,7 @@ import re
 
 
 class ImageCodeHandler(BaseHandler):
-    """"""
+    """图片验证码"""
     def get(self):
         code_id = self.get_argument("cur","")
         pre_code_id = self.get_argument("pre","")
@@ -36,7 +36,7 @@ class ImageCodeHandler(BaseHandler):
 
 
 class PhoneCodeHandler(BaseHandler):
-    """"""
+    """短信验证码"""
     def post(self):
         # 获取的字典数据
         print self.json_dict

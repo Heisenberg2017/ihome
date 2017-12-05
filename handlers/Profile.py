@@ -10,6 +10,7 @@ import config
 
 
 class ProfileHandler(BaseHandler):
+    """个人中心"""
     # errcode name mobile avatar
     @required_login
     def get(self):
@@ -21,7 +22,7 @@ class ProfileHandler(BaseHandler):
 
 
 class AvatarHandler(BaseHandler):
-    """"""
+    """更新头像"""
     @required_login
     def post(self):
         try:
@@ -53,6 +54,7 @@ class AvatarHandler(BaseHandler):
 
 
 class RenameHandler(BaseHandler):
+    """更改用户名"""
     @required_login
     def post(self):
         print self.json_dict
@@ -79,6 +81,7 @@ class RenameHandler(BaseHandler):
 
 
 class AuthHandler(BaseHandler):
+    """实名验证"""
     @required_login
     def get(self):
         # 查询用户名对真实姓名,证件号

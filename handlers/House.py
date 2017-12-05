@@ -13,7 +13,6 @@ import math
 
 
 class IndexHandler(BaseHandler):
-
     """首页信息"""
     def get(self):
 
@@ -166,6 +165,7 @@ class MyHousesHandler(BaseHandler):
 
 
 class HouseInfoHandler(BaseHandler):
+    """房屋详情页"""
     # 需要获得的数据
     # data = {"images": ["http://ozyfrfdcg.bkt.clouddn.com/FoZg1QLpRi4vckq_W3tBBQe1wJxn",
     #                    "http://ozyfrfdcg.bkt.clouddn.com/FoZg1QLpRi4vckq_W3tBBQe1wJxn",
@@ -306,6 +306,7 @@ class HouseInfoHandler(BaseHandler):
         # self.write(dict(errcode=RET.OK, errmsg="OK", data=data))
         self.write(resp)
         # self.write({"errcode":RET.OK,"data":data})
+
     @required_login
     def post(self):
         user_id = self.session.data["up_user_id"]
@@ -375,7 +376,7 @@ class HouseInfoHandler(BaseHandler):
 
 
 class HouseImageHandler(BaseHandler):
-    """"""
+    """添加房屋图片"""
     @required_login
     def post(self):
         house_id = self.get_argument('house_id')
@@ -414,7 +415,7 @@ class HouseImageHandler(BaseHandler):
 
 
 class SearchHandler(BaseHandler):
-
+    """房屋搜索"""
     def get(self):
         # 获取参数
         start_date = self.get_argument("sd", "")

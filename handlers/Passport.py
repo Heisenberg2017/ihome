@@ -10,13 +10,14 @@ import config
 import json
 
 """
-BUG:
 1.浏览器第一次打开_xsrf信息未发送，表单提交受阻，再次刷新正常提交
 2.发送手机验证码后应删除redis中的验证码信息,避免无用数据占用内存
 3.注册成功应删除删除redis中的手机验证码缓存,避免无用数据占用内存
 """
 
+
 class RegisterHandler(BaseHandler):
+    """用户注册"""
     def post(self):
         # 输出获取的注册信息
         print self.json_dict
@@ -71,7 +72,7 @@ class RegisterHandler(BaseHandler):
 
 
 class LoginHandler(BaseHandler):
-
+    """用户登陆"""
     def post(self):
         mobile = self.json_dict.get('mobile')
         use_pwd = self.json_dict.get('password')
@@ -114,6 +115,7 @@ class LoginHandler(BaseHandler):
 
 
 class LogoutHandler(BaseHandler):
+    """退出登陆"""
     @required_login
     def get(self):
         # 清除sessionx信息
