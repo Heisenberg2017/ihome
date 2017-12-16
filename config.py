@@ -10,14 +10,14 @@ settings = {
 }
 
 mysql_options = dict(
-    host="127.0.0.1",
+    host="172.20.10.6",
     database="ihome",
     user="root",
-    password="newpass"
+    password="mysql"
 )
 
 redis_options = dict(
-    host="127.0.0.1",
+    host="172.20.10.6",
     port=6379
 )
 

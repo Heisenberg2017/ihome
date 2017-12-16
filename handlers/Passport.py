@@ -36,7 +36,7 @@ class RegisterHandler(BaseHandler):
         try:
             mobile_code = self.redis.get("sms_code_%s" % mobile)
         except Exception as e:
-            logging(e)
+            logging.error(e)
             return self.write(dict(errcode=RET.DATAERR, errmsg="数据出错"))
 
         if not mobile_code:
@@ -50,21 +50,20 @@ class RegisterHandler(BaseHandler):
         s1 = sha256()
         s1.update(password+config.password_key)
         password = s1.hexdigest()
-
         # 验证成功存入数据库
-        try :
+        try:
             user_id = self.db.execute("insert into ih_user_profile(up_name,up_mobile,up_passwd) "
                             "values(%(up_name)s, %(up_mobile)s, %(up_passwd)s)",
-                            up_name= str(mobile),up_mobile= mobile,up_passwd= password)
+                            up_name= mobile,up_mobile= mobile,up_passwd= password)
         except Exception as e:
             logging.error(e)
             return self.write(dict(errcode=RET.DATAERR, errmsg="数据库错误"))
 
         # 登陆成功,构造符合格式session信息
-        use_data = {"up_user_id":user_id,"up_name":mobile,"up_mobile":mobile}
+        use_data = {"up_user_id": user_id, "up_name": mobile, "up_mobile": mobile}
         self.session = Session(self)
         # 保存session
-        self.session.data = dict(use_Data=use_data)
+        self.session.data = use_data
         self.session.save()
 
         # session保存成功返回数据
@@ -103,7 +102,6 @@ class LoginHandler(BaseHandler):
         if use_pwd != use_data['up_passwd']:
             return self.write(dict(errcode=RET.PWDERR, errmsg="密码错误"))
 
-
         # 登陆成功,保存session
         self.session = Session(self)
         # 在session中加入up_user_id方便查找-
@@ -118,19 +116,20 @@ class LogoutHandler(BaseHandler):
     """退出登陆"""
     @required_login
     def get(self):
-        # 清除sessionx信息
+        # 清除session信息
         self.session = Session(self)
         self.session.clear()
         # 处理完成
-        self.write({'errcode':RET.OK})
+        self.write({'errcode': RET.OK})
 
 
 class CheckLoginHandler(BaseHandler):
     """检查登陆状态"""
     def get(self):
         if self.get_current_user():
-            self.write({'errcode':RET.OK,'data':{'name':self.session.data.get('up_name')}})
+            print self.session.data
+            self.write({'errcode': RET.OK,'data': {'name': self.session.data.get('up_name')}})
         else:
-            self.write({'errcode':RET.SESSIONERR})
+            self.write({'errcode': RET.SESSIONERR})
 
 
